@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRIO · Análise de Dados — João Domingues</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --prio: #e8420a;
+    --prio2: #ff6b35;
+    --gold: #f5a623;
+    --green: #2dd4a0;
+    --blue: #4a9eff;
+    --text: #eef0f4;
+    --muted: #6b7280;
+    --dim: #374151;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 50% at 10% 20%, rgba(232,66,10,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, rgba(74,158,255,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo-group { display: flex; align-items: center; gap: 16px; }
+
+  .prio-badge {
+    background: var(--prio);
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    padding: 6px 14px;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 8px 100%);
+  }
+
+  .header-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .live-dot {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 0.06em;
+  }
+
+  .live-dot::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .date-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* HERO SECTION */
+  .hero {
+    padding: 48px 0 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--prio);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .hero-title span { color: var(--prio); }
+
+  .hero-sub {
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+    padding-bottom: 0;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .tab {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    margin-bottom: -1px;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--prio); border-bottom-color: var(--prio); }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .kpi-card.red::before { background: var(--prio); }
+  .kpi-card.gold::before { background: var(--gold); }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.blue::before { background: var(--blue); }
+
+  .kpi-card:hover { border-color: var(--dim); transform: translateY(-2px); }
+
+  .kpi-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .kpi-card.red .kpi-value { color: var(--prio2); }
+  .kpi-card.gold .kpi-value { color: var(--gold); }
+  .kpi-card.green .kpi-value { color: var(--green); }
+  .kpi-card.blue .kpi-value { color: var(--blue); }
+
+  .kpi-delta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--prio); }
+
+  .kpi-sparkline {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 80px; height: 40px;
+    opacity: 0.3;
+  }
+
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  @media (max-width: 900px) { .chart-grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .card-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .badge.green { background: rgba(45,212,160,0.1); color: var(--green); border: 1px solid rgba(45,212,160,0.2); }
+  .badge.red { background: rgba(232,66,10,0.1); color: var(--prio2); border: 1px solid rgba(232,66,10,0.2); }
+  .badge.gold { background: rgba(245,166,35,0.1); color: var(--gold); border: 1px solid rgba(245,166,35,0.2); }
+
+  canvas { max-width: 100%; }
+
+  /* TABLE */
+  .table-section {
+    animation: fadeUp 0.6s 0.5s ease both;
+    margin-bottom: 28px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,35,48,0.5);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  tbody td {
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+
+  .rank {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .station-name {
+    font-weight: 500;
+  }
+
+  .bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .bar-bg {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--prio);
+    transition: width 1s ease;
+  }
+
+  .bar-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* ANOMALY PANEL */
+  .anomaly-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .anomaly-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+  }
+
+  .anomaly-item.warn { border-left-color: var(--gold); }
+  .anomaly-item.crit { border-left-color: var(--prio); }
+  .anomaly-item.ok { border-left-color: var(--green); }
+
+  .anomaly-icon {
+    font-size: 16px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .anomaly-text { flex: 1; }
+  .anomaly-title { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+  .anomaly-desc { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  .anomaly-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: fadeUp 0.6s 0.6s ease both;
+  }
+
+  .footer-author {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .footer-author span { color: var(--prio2); }
+
+  /* SECTION hide/show */
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+
+  /* DONUT center */
+  .donut-wrap { position: relative; }
+  .donut-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .donut-center-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .donut-center-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Segment legend */
+  .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; color: var(--muted); }
+  .legend-val { font-family: 'DM Mono', monospace; font-size: 11px; }
+
+  .selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .sel-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .sel-btn.active, .sel-btn:hover { border-color: var(--prio); color: var(--prio2); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo-group">
+        <div class="prio-badge">PRIO</div>
+        <div class="header-title">Centro de Análise de Dados · Relatório Executivo</div>
+      </div>
+      <div class="header-meta">
+        <div class="live-dot">LIVE</div>
+        <div class="date-label">Junho 2026 — Semana 23</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="hero-label">// Dashboard de Performance Operacional</div>
+    <h1 class="hero-title">Análise de Dados<br><span>PRIO Energy</span></h1>
+    <p class="hero-sub">Monitorização de KPIs de vendas, qualidade de dados e performance de rede de postos. Desenvolvido por João Domingues como amostra técnica para a posição de Técnico de Análise de Dados.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview')">Visão Geral</button>
+    <button class="tab" onclick="showTab('vendas')">Vendas & Volume</button>
+    <button class="tab" onclick="showTab('rede')">Rede de Postos</button>
+    <button class="tab" onclick="showTab('qualidade')">Qualidade de Dados</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-section active">
+
+    <div class="kpi-grid">
+      <div class="kpi-card red">
+        <div class="kpi-label">Volume Vendido (L)</div>
+        <div class="kpi-value">84.2M</div>
+        <div class="kpi-delta up">↑ +7.3% vs mês anterior</div>
+        <svg class="kpi-sparkline" viewBox="0 0 80 40"><polyline points="0,35 13,28 26,32 39,18 52,22 65,10 80,14" fill="none" stroke="#e8420a" stroke-width="2"/></svg>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-label">Receita Bruta (€)</div>
+        <div class="kpi-value">112.7M</div>
+        <div class="kpi-delta up">↑ +4.1% vs mês anterior</div>
+        <svg class="kpi-sparkline" viewBox="0 0 80 40"><polyline points="0,30 13,25 26,28 39,20 52,15 65,18 80,12" fill="none" stroke="#f5a623" stroke-width="2"/></svg>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Postos Ativos</div>
+        <div class="kpi-value">247</div>
+        <div class="kpi-delta up">↑ +3 novos este mês</div>
+        <svg class="kpi-sparkline" viewBox="0 0 80 40"><polyline points="0,38 13,36 26,36 39,34 52,34 65,32 80,30" fill="none" stroke="#2dd4a0" stroke-width="2"/></svg>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Qualidade de Dados</div>
+        <div class="kpi-value">96.4%</div>
+        <div class="kpi-delta down">↓ -0.8pp vs semana anterior</div>
+        <svg class="kpi-sparkline" viewBox="0 0 80 40"><polyline points="0,15 13,12 26,10 39,14 52,16 65,22 80,18" fill="none" stroke="#4a9eff" stroke-width="2"/></svg>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Evolução de Vendas por Produto</div>
+            <div class="card-sub">Jan – Jun 2026 · Litros (M)</div>
+          </div>
+          <div class="badge green">+7.3% MoM</div>
+        </div>
+        <canvas id="salesChart" height="200"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Mix de Produto</div>
+            <div class="card-sub">Volume total · Junho 2026</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <canvas id="mixChart" height="180"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-val">84.2M</div>
+            <div class="donut-center-label">Litros</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#e8420a"></div><span class="legend-label">Gasóleo</span><span class="legend-val">47%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f5a623"></div><span class="legend-label">Gasolina 95</span><span class="legend-val">31%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4a9eff"></div><span class="legend-label">Gasolina 98</span><span class="legend-val">14%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#2dd4a0"></div><span class="legend-label">AdBlue & Outros</span><span class="legend-val">8%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Preço Médio (€/L)</div>
+            <div class="card-sub">Gasóleo vs. Gasolina 95</div>
+          </div>
+          <div class="badge gold">Semanal</div>
+        </div>
+        <canvas id="priceChart" height="160"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Vendas por Dia Semana</div>
+            <div class="card-sub">Média · Junho 2026 (M L)</div>
+          </div>
+        </div>
+        <canvas id="weekChart" height="160"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Anomalias Detetadas</div>
+            <div class="card-sub">Últimas 24h</div>
+          </div>
+          <div class="badge red">2 Críticas</div>
+        </div>
+        <div class="anomaly-list">
+          <div class="anomaly-item crit">
+            <div class="anomaly-icon">⚠️</div>
+            <div class="anomaly-text">
+              <div class="anomaly-title">Posto Lisboa-Norte: Volume anómalo</div>
+              <div class="anomaly-desc">Desvio de +312% vs média histórica</div>
+            </div>
+            <div class="anomaly-time">08:14</div>
+          </div>
+          <div class="anomaly-item crit">
+            <div class="anomaly-icon">⚠️</div>
+            <div class="anomaly-text">
+              <div class="anomaly-title">Dados em falta — Porto Sul</div>
+              <div class="anomaly-desc">3 registos sem valor de volume</div>
+            </div>
+            <div class="anomaly-time">06:52</div>
+          </div>
+          <div class="anomaly-item warn">
+            <div class="anomaly-icon">🔶</div>
+            <div class="anomaly-text">
+              <div class="anomaly-title">Preço inconsistente — Aveiro A1</div>
+              <div class="anomaly-desc">€0.04 acima do corredor definido</div>
+            </div>
+            <div class="anomaly-time">04:30</div>
+          </div>
+          <div class="anomaly-item ok">
+            <div class="anomaly-icon">✅</div>
+            <div class="anomaly-text">
+              <div class="anomaly-title">Resolução confirmada — Faro Sul</div>
+              <div class="anomaly-desc">Dados recalibrados com sucesso</div>
+            </div>
+            <div class="anomaly-time">02:10</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- VENDAS TAB -->
+  <div id="tab-vendas" class="tab-section">
+    <div class="kpi-grid" style="grid-template-columns: repeat(3,1fr)">
+      <div class="kpi-card red">
+        <div class="kpi-label">YTD Volume (L)</div>
+        <div class="kpi-value">421M</div>
+        <div class="kpi-delta up">↑ +9.2% vs 2025</div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-label">Receita YTD (€)</div>
+        <div class="kpi-value">558.4M</div>
+        <div class="kpi-delta up">↑ +5.8% vs 2025</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Margem Média</div>
+        <div class="kpi-value">8.4%</div>
+        <div class="kpi-delta down">↓ -0.3pp vs 2025</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Volume Mensal por Categoria · 2025 vs 2026</div>
+          <div class="card-sub">Comparativo anual · Litros (M)</div>
+        </div>
+        <div class="badge green">YoY +9.2%</div>
+      </div>
+      <canvas id="yoyChart" height="180"></canvas>
+    </div>
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Receita por Canal de Venda</div><div class="card-sub">Jan–Jun 2026 · €M</div></div>
+        </div>
+        <canvas id="canalChart" height="200"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Top Regiões por Volume</div><div class="card-sub">Junho 2026 · Litros (M)</div></div>
+        </div>
+        <canvas id="regiaoChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- REDE TAB -->
+  <div id="tab-rede" class="tab-section">
+    <div class="table-section">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Performance de Postos · Top 10</div>
+            <div class="card-sub">Ranking por volume vendido · Junho 2026</div>
+          </div>
+          <div class="badge gold">247 Postos Ativos</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Posto</th>
+              <th>Região</th>
+              <th>Volume (L)</th>
+              <th>Variação MoM</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="stationTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUALIDADE TAB -->
+  <div id="tab-qualidade" class="tab-section">
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-label">Completude</div>
+        <div class="kpi-value">98.1%</div>
+        <div class="kpi-delta up">↑ +0.3pp</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Consistência</div>
+        <div class="kpi-value">97.2%</div>
+        <div class="kpi-delta up">↑ +0.1pp</div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-label">Atualidade</div>
+        <div class="kpi-value">94.8%</div>
+        <div class="kpi-delta down">↓ -1.2pp</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Registos com Erro</div>
+        <div class="kpi-value">1,247</div>
+        <div class="kpi-delta up">↓ -18% vs semana ant.</div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Evolução da Qualidade de Dados</div><div class="card-sub">Score semanal (%) · Jan–Jun 2026</div></div>
+          <div class="badge blue">Score Composto</div>
+        </div>
+        <canvas id="qualChart" height="200"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Erros por Tipo</div><div class="card-sub">Distribuição · Junho 2026</div></div>
+        </div>
+        <canvas id="erroChart" height="200"></canvas>
+        <div class="legend" style="margin-top:20px">
+          <div class="legend-item"><div class="legend-dot" style="background:#e8420a"></div><span class="legend-label">Valores em falta</span><span class="legend-val">38%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f5a623"></div><span class="legend-label">Formato incorreto</span><span class="legend-val">27%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4a9eff"></div><span class="legend-label">Duplicados</span><span class="legend-val">21%</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#2dd4a0"></div><span class="legend-label">Outliers</span><span class="legend-val">14%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-author">Desenvolvido por <span>João Domingues</span> · Candidatura Técnico de Análise de Dados · PRIO · 2026</div>
+    <div class="footer-author" style="color:var(--dim)">Dados simulados para fins demonstrativos</div>
+  </footer>
+
+</div>
+
+<script>
+// Chart defaults
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = '#1e2330';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const months = ['Jan','Fev','Mar','Abr','Mai','Jun'];
+
+// Sales Chart
+new Chart(document.getElementById('salesChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Gasóleo',
+        data: [34.1, 36.8, 35.2, 38.9, 40.1, 39.6],
+        borderColor: '#e8420a',
+        backgroundColor: 'rgba(232,66,10,0.08)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#e8420a'
+      },
+      {
+        label: 'Gasolina 95',
+        data: [22.4, 23.1, 24.8, 25.2, 26.3, 26.1],
+        borderColor: '#f5a623',
+        backgroundColor: 'rgba(245,166,35,0.05)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#f5a623'
+      },
+      {
+        label: 'Gasolina 98',
+        data: [10.2, 11.1, 11.8, 12.0, 11.7, 11.8],
+        borderColor: '#4a9eff',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#4a9eff'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 8, padding: 16, font: { size: 11 } } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,35,48,0.6)' } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => v + 'M' } }
+    }
+  }
+});
+
+// Mix Donut
+new Chart(document.getElementById('mixChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Gasóleo', 'Gasolina 95', 'Gasolina 98', 'Outros'],
+    datasets: [{
+      data: [47, 31, 14, 8],
+      backgroundColor: ['#e8420a','#f5a623','#4a9eff','#2dd4a0'],
+      borderColor: '#111318',
+      borderWidth: 3,
+      hoverOffset: 8
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '68%',
+    plugins: { legend: { display: false } }
+  }
+});
+
+// Price Chart
+new Chart(document.getElementById('priceChart'), {
+  type: 'line',
+  data: {
+    labels: ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','S15','S16','S17','S18','S19','S20','S21','S22','S23'],
+    datasets: [
+      {
+        label: 'Gasóleo',
+        data: [1.52,1.54,1.51,1.53,1.55,1.58,1.56,1.54,1.57,1.59,1.61,1.60,1.62,1.64,1.62,1.63,1.65,1.67,1.66,1.68,1.70,1.69,1.71],
+        borderColor: '#e8420a',
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 0
+      },
+      {
+        label: 'Gasolina 95',
+        data: [1.68,1.70,1.67,1.69,1.72,1.74,1.73,1.71,1.74,1.76,1.78,1.77,1.79,1.81,1.79,1.80,1.82,1.84,1.83,1.85,1.87,1.86,1.88],
+        borderColor: '#f5a623',
+        tension: 0.4,
+        borderWidth: 2,
+        pointRadius: 0
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 12 } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => '€' + v.toFixed(2) } }
+    }
+  }
+});
+
+// Week Chart
+new Chart(document.getElementById('weekChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+    datasets: [{
+      data: [12.4, 11.8, 12.1, 13.2, 14.8, 15.6, 10.2],
+      backgroundColor: ['#e8420a','#e8420a','#e8420a','#e8420a','#ff6b35','#ff6b35','#374151'],
+      borderRadius: 3,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => v + 'M' } }
+    }
+  }
+});
+
+// YoY Chart
+new Chart(document.getElementById('yoyChart'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      { label: '2025', data: [60.2, 62.8, 65.1, 67.4, 70.2, 77.2], backgroundColor: 'rgba(232,66,10,0.25)', borderRadius: 3 },
+      { label: '2026', data: [66.1, 68.4, 71.2, 73.8, 77.4, 84.2], backgroundColor: '#e8420a', borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => v + 'M' } }
+    }
+  }
+});
+
+// Canal Chart
+new Chart(document.getElementById('canalChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Postos Rede', 'Frotas B2B', 'E-commerce', 'Parcerias', 'Outros'],
+    datasets: [{
+      data: [312.4, 148.6, 42.1, 38.8, 16.5],
+      backgroundColor: ['#e8420a','#f5a623','#4a9eff','#2dd4a0','#374151'],
+      borderRadius: 4,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => '€' + v + 'M' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// Regiao Chart
+new Chart(document.getElementById('regiaoChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Lisboa', 'Porto', 'Aveiro', 'Setúbal', 'Braga', 'Faro'],
+    datasets: [{
+      data: [22.1, 18.4, 12.7, 10.3, 9.8, 7.2],
+      backgroundColor: '#e8420a',
+      borderRadius: 3,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => v + 'M' } }
+    }
+  }
+});
+
+// Quality Chart
+new Chart(document.getElementById('qualChart'), {
+  type: 'line',
+  data: {
+    labels: ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','S15','S16','S17','S18','S19','S20','S21','S22','S23'],
+    datasets: [
+      { label: 'Completude', data: [96,96.5,97,97.2,97.8,98,97.9,98.1,98,97.8,98.1,98.2,98.3,98.1,98.0,98.2,98.1,98.3,98.2,98.1,98.0,98.1,98.1], borderColor: '#4a9eff', tension: 0.4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Consistência', data: [94,94.8,95.2,95.8,96.2,96.5,96.8,96.9,97,96.8,97.1,97.2,97.0,97.1,97.0,97.2,97.1,97.2,97.3,97.2,97.1,97.2,97.2], borderColor: '#2dd4a0', tension: 0.4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Score Geral', data: [95,95.6,96.1,96.5,97.0,97.2,97.4,97.5,97.5,97.3,97.6,97.7,97.6,97.6,97.5,97.7,97.6,97.7,97.7,97.6,97.5,97.6,96.4], borderColor: '#f5a623', tension: 0.4, borderWidth: 2.5, pointRadius: 0, borderDash: [4,3] }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 12 } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
+      y: { min: 93, max: 100, grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { callback: v => v + '%' } }
+    }
+  }
+});
+
+// Error Donut
+new Chart(document.getElementById('erroChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Valores em falta', 'Formato incorreto', 'Duplicados', 'Outliers'],
+    datasets: [{
+      data: [38, 27, 21, 14],
+      backgroundColor: ['#e8420a','#f5a623','#4a9eff','#2dd4a0'],
+      borderColor: '#111318',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '60%',
+    plugins: { legend: { display: false } }
+  }
+});
+
+// Station Table
+const stations = [
+  { name: 'Lisboa Norte — A1', region: 'Lisboa', vol: 412400, delta: +8.2, status: 'ok' },
+  { name: 'Porto — Via Norte', region: 'Porto', vol: 387200, delta: +3.1, status: 'ok' },
+  { name: 'Aveiro — A1 Sul', region: 'Aveiro', vol: 341800, delta: +11.4, status: 'ok' },
+  { name: 'Setúbal — EN10', region: 'Setúbal', vol: 298600, delta: -2.3, status: 'warn' },
+  { name: 'Braga — A3', region: 'Braga', vol: 276400, delta: +5.7, status: 'ok' },
+  { name: 'Faro — EN125', region: 'Faro', vol: 261200, delta: +1.2, status: 'ok' },
+  { name: 'Coimbra — A1', region: 'Coimbra', vol: 248900, delta: +4.8, status: 'ok' },
+  { name: 'Lisboa Sul — A2', region: 'Lisboa', vol: 231400, delta: -0.4, status: 'warn' },
+  { name: 'Viseu — IP5', region: 'Viseu', vol: 214700, delta: +7.9, status: 'ok' },
+  { name: 'Porto Sul — A1', region: 'Porto', vol: 198300, delta: +2.6, status: 'crit' }
+];
+
+const maxVol = stations[0].vol;
+const tbody = document.getElementById('stationTable');
+
+stations.forEach((s, i) => {
+  const pct = (s.vol / maxVol * 100).toFixed(0);
+  const deltaColor = s.delta >= 0 ? '#2dd4a0' : '#e8420a';
+  const deltaSign = s.delta >= 0 ? '↑' : '↓';
+  const statusMap = { ok: ['#2dd4a0', 'Operacional'], warn: ['#f5a623', 'Alerta'], crit: ['#e8420a', 'Crítico'] };
+  const [sColor, sLabel] = statusMap[s.status];
+  tbody.innerHTML += `
+    <tr>
+      <td class="rank">${String(i+1).padStart(2,'0')}</td>
+      <td class="station-name">${s.name}</td>
+      <td style="color:var(--muted);font-size:12px">${s.region}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <div class="bar-val">${(s.vol/1000).toFixed(0)}k L</div>
+        </div>
+      </td>
+      <td style="color:${deltaColor};font-family:'DM Mono',monospace;font-size:12px">${deltaSign} ${Math.abs(s.delta)}%</td>
+      <td><span class="status-dot" style="background:${sColor}"></span><span style="font-size:12px;color:${sColor}">${sLabel}</span></td>
+    </tr>`;
+});
+
+// Tab switching
+function showTab(id) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
